@@ -12,7 +12,7 @@ export default function Home() {
         🚀 Referent
       </h1>
       <p style={{ fontSize: '1.25rem', color: '#666' }}>
-        Минимальное приложение на Next.js
+        Я изучаю Next.js
       </p>
     </main>
   );
