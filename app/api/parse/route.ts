@@ -1,0 +1,206 @@
+import { NextRequest, NextResponse } from 'next/server';
+import * as cheerio from 'cheerio';
+
+interface ParsedArticle {
+  date: string | null;
+  title: string | null;
+  content: string | null;
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const { url } = await request.json();
+
+    if (!url) {
+      return NextResponse.json(
+        { error: 'URL не указан' },
+        { status: 400 }
+      );
+    }
+
+    // Получаем HTML страницы
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+      },
+    });
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: `Ошибка загрузки страницы: ${response.status}` },
+        { status: 400 }
+      );
+    }
+
+    const html = await response.text();
+    const $ = cheerio.load(html);
+
+    // Извлекаем заголовок
+    const title = extractTitle($);
+
+    // Извлекаем дату
+    const date = extractDate($);
+
+    // Извлекаем контент
+    const content = extractContent($);
+
+    const result: ParsedArticle = {
+      date,
+      title,
+      content,
+    };
+
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error('Parse error:', error);
+    return NextResponse.json(
+      { error: `Ошибка парсинга: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}` },
+      { status: 500 }
+    );
+  }
+}
+
+function extractTitle($: cheerio.CheerioAPI): string | null {
+  // Приоритетный порядок поиска заголовка
+  const selectors = [
+    'article h1',
+    '.post-title',
+    '.article-title',
+    '.entry-title',
+    'h1.title',
+    '.content h1',
+    'main h1',
+    'h1',
+    'meta[property="og:title"]',
+  ];
+
+  for (const selector of selectors) {
+    if (selector.startsWith('meta')) {
+      const content = $(selector).attr('content');
+      if (content) return content.trim();
+    } else {
+      const text = $(selector).first().text();
+      if (text) return text.trim();
+    }
+  }
+
+  // Fallback на title страницы
+  return $('title').text().trim() || null;
+}
+
+function extractDate($: cheerio.CheerioAPI): string | null {
+  // Ищем дату в различных форматах
+  const dateSelectors = [
+    'time[datetime]',
+    'meta[property="article:published_time"]',
+    'meta[name="date"]',
+    'meta[name="pubdate"]',
+    '.post-date',
+    '.article-date',
+    '.entry-date',
+    '.published',
+    '.date',
+    '[class*="date"]',
+    '[class*="time"]',
+  ];
+
+  for (const selector of dateSelectors) {
+    const element = $(selector).first();
+    
+    if (selector === 'time[datetime]') {
+      const datetime = element.attr('datetime');
+      if (datetime) return formatDate(datetime);
+    }
+    
+    if (selector.startsWith('meta')) {
+      const content = element.attr('content');
+      if (content) return formatDate(content);
+    }
+    
+    const text = element.text().trim();
+    if (text && isLikelyDate(text)) {
+      return text;
+    }
+  }
+
+  return null;
+}
+
+function extractContent($: cheerio.CheerioAPI): string | null {
+  // Удаляем ненужные элементы
+  $('script, style, nav, header, footer, aside, .sidebar, .comments, .advertisement, .ad, .social-share, .related-posts').remove();
+
+  // Приоритетный порядок поиска контента
+  const contentSelectors = [
+    'article',
+    '[role="article"]',
+    '.post-content',
+    '.article-content',
+    '.entry-content',
+    '.content',
+    '.post-body',
+    '.article-body',
+    'main',
+    '.main-content',
+  ];
+
+  for (const selector of contentSelectors) {
+    const element = $(selector).first();
+    if (element.length) {
+      // Получаем текст, сохраняя параграфы
+      const paragraphs: string[] = [];
+      element.find('p').each((_, p) => {
+        const text = $(p).text().trim();
+        if (text && text.length > 20) {
+          paragraphs.push(text);
+        }
+      });
+      
+      if (paragraphs.length > 0) {
+        return paragraphs.join('\n\n');
+      }
+    }
+  }
+
+  // Fallback: собираем все параграфы со страницы
+  const fallbackParagraphs: string[] = [];
+  $('p').each((_, p) => {
+    const text = $(p).text().trim();
+    if (text && text.length > 50) {
+      fallbackParagraphs.push(text);
+    }
+  });
+
+  return fallbackParagraphs.length > 0 ? fallbackParagraphs.join('\n\n') : null;
+}
+
+function formatDate(dateString: string): string {
+  try {
+    const date = new Date(dateString);
+    if (!isNaN(date.getTime())) {
+      return date.toLocaleDateString('ru-RU', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    }
+  } catch {
+    // Возвращаем оригинальную строку, если не удалось распарсить
+  }
+  return dateString;
+}
+
+function isLikelyDate(text: string): boolean {
+  // Проверяем, похож ли текст на дату
+  const datePatterns = [
+    /\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}/,
+    /\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2}/,
+    /\w+\s+\d{1,2},?\s+\d{4}/,
+    /\d{1,2}\s+\w+\s+\d{4}/,
+  ];
+  
+  return datePatterns.some(pattern => pattern.test(text)) && text.length < 50;
+}
+

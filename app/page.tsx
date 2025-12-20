@@ -2,13 +2,40 @@
 
 import { useState } from 'react';
 
-type ActionType = 'summary' | 'theses' | 'telegram' | null;
+type ActionType = 'parse' | 'summary' | 'theses' | 'telegram' | null;
+
+interface ParsedArticle {
+  date: string | null;
+  title: string | null;
+  content: string | null;
+}
 
 export default function Home() {
   const [url, setUrl] = useState('');
   const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeAction, setActiveAction] = useState<ActionType>(null);
+  const [parsedData, setParsedData] = useState<ParsedArticle | null>(null);
+
+  const parseArticle = async (): Promise<ParsedArticle | null> => {
+    try {
+      const response = await fetch('/api/parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Ошибка парсинга');
+      }
+
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  };
 
   const handleAction = async (action: ActionType) => {
     if (!url.trim()) {
@@ -19,18 +46,37 @@ export default function Home() {
     setLoading(true);
     setActiveAction(action);
     setResult('');
+    setParsedData(null);
 
-    // TODO: Здесь будет логика обращения к API
-    // Пока показываем заглушку
-    setTimeout(() => {
-      const actionTexts = {
-        summary: `Анализ статьи: ${url}\n\nЗдесь будет краткое описание о чем статья...`,
-        theses: `Основные тезисы статьи: ${url}\n\n• Тезис 1\n• Тезис 2\n• Тезис 3`,
-        telegram: `📌 Пост для Telegram\n\nКраткий пересказ статьи ${url} для вашего канала...`,
-      };
-      setResult(actionTexts[action!] || '');
+    try {
+      // Сначала парсим статью
+      const parsed = await parseArticle();
+      setParsedData(parsed);
+
+      if (!parsed || !parsed.content) {
+        setResult('Не удалось извлечь контент статьи');
+        setLoading(false);
+        return;
+      }
+
+      if (action === 'parse') {
+        // Просто показываем результат парсинга
+        const jsonResult = JSON.stringify(parsed, null, 2);
+        setResult(jsonResult);
+      } else {
+        // TODO: Здесь будет логика обращения к AI API
+        const actionTexts = {
+          summary: `📄 Статья: ${parsed.title}\n📅 Дата: ${parsed.date || 'не указана'}\n\n[Здесь будет AI-анализ о чем статья...]`,
+          theses: `📄 Статья: ${parsed.title}\n📅 Дата: ${parsed.date || 'не указана'}\n\n[Здесь будут AI-сгенерированные тезисы...]`,
+          telegram: `📄 Статья: ${parsed.title}\n📅 Дата: ${parsed.date || 'не указана'}\n\n[Здесь будет AI-пост для Telegram...]`,
+        };
+        setResult(actionTexts[action!] || '');
+      }
+    } catch (error) {
+      setResult(`Ошибка: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -62,6 +108,29 @@ export default function Home() {
 
           {/* Кнопки действий */}
           <div className="flex flex-wrap gap-3 mt-6">
+            <button
+              onClick={() => handleAction('parse')}
+              disabled={loading}
+              className={`flex-1 min-w-[140px] px-6 py-3 rounded-xl font-medium transition-all duration-200
+                ${activeAction === 'parse' && loading
+                  ? 'bg-slate-600 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-600 hover:text-white'
+                }
+                disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {activeAction === 'parse' && loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Парсинг...
+                </span>
+              ) : (
+                '🔍 Парсинг'
+              )}
+            </button>
+
             <button
               onClick={() => handleAction('summary')}
               disabled={loading}
@@ -140,16 +209,18 @@ export default function Home() {
               <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
               Результат
             </h2>
-            <div className="bg-slate-50 rounded-xl p-6 min-h-[200px]">
+            <div className="bg-slate-50 rounded-xl p-6 min-h-[200px] overflow-auto max-h-[500px]">
               {loading ? (
                 <div className="flex items-center justify-center h-[200px]">
                   <div className="flex flex-col items-center gap-4">
                     <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                    <p className="text-slate-500">AI анализирует статью...</p>
+                    <p className="text-slate-500">
+                      {activeAction === 'parse' ? 'Парсинг статьи...' : 'AI анализирует статью...'}
+                    </p>
                   </div>
                 </div>
               ) : (
-                <pre className="whitespace-pre-wrap text-slate-700 font-sans leading-relaxed">
+                <pre className="whitespace-pre-wrap text-slate-700 font-mono text-sm leading-relaxed">
                   {result}
                 </pre>
               )}
