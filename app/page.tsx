@@ -1,22 +1,167 @@
+'use client';
+
+import { useState } from 'react';
+
+type ActionType = 'summary' | 'theses' | 'telegram' | null;
+
 export default function Home() {
+  const [url, setUrl] = useState('');
+  const [result, setResult] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [activeAction, setActiveAction] = useState<ActionType>(null);
+
+  const handleAction = async (action: ActionType) => {
+    if (!url.trim()) {
+      setResult('Пожалуйста, введите URL статьи');
+      return;
+    }
+
+    setLoading(true);
+    setActiveAction(action);
+    setResult('');
+
+    // TODO: Здесь будет логика обращения к API
+    // Пока показываем заглушку
+    setTimeout(() => {
+      const actionTexts = {
+        summary: `Анализ статьи: ${url}\n\nЗдесь будет краткое описание о чем статья...`,
+        theses: `Основные тезисы статьи: ${url}\n\n• Тезис 1\n• Тезис 2\n• Тезис 3`,
+        telegram: `📌 Пост для Telegram\n\nКраткий пересказ статьи ${url} для вашего канала...`,
+      };
+      setResult(actionTexts[action!] || '');
+      setLoading(false);
+    }, 1500);
+  };
+
   return (
-    <main style={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      minHeight: '100vh',
-      fontFamily: 'system-ui, sans-serif'
-    }}>
-      <h1 style={{ fontSize: '3rem', marginBottom: '1rem' }}>
-        🚀 Referent
-      </h1>
-      <p style={{ fontSize: '1.25rem', color: '#666' }}>
-        Я изучаю Next.js
-      </p>
+    <main className="min-h-screen py-12 px-4">
+      <div className="max-w-3xl mx-auto">
+        {/* Заголовок */}
+        <div className="text-center mb-10">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-3">
+            Referent
+          </h1>
+          <p className="text-slate-600 text-lg">
+            AI-помощник для анализа англоязычных статей
+          </p>
+        </div>
+
+        {/* Форма ввода URL */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 mb-6">
+          <label htmlFor="url" className="block text-sm font-medium text-slate-700 mb-2">
+            URL англоязычной статьи
+          </label>
+          <input
+            id="url"
+            type="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://example.com/article"
+            className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all text-slate-800 placeholder:text-slate-400"
+          />
+
+          {/* Кнопки действий */}
+          <div className="flex flex-wrap gap-3 mt-6">
+            <button
+              onClick={() => handleAction('summary')}
+              disabled={loading}
+              className={`flex-1 min-w-[140px] px-6 py-3 rounded-xl font-medium transition-all duration-200
+                ${activeAction === 'summary' && loading
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-600 hover:text-white'
+                }
+                disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {activeAction === 'summary' && loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Анализ...
+                </span>
+              ) : (
+                '📝 О чем статья?'
+              )}
+            </button>
+
+            <button
+              onClick={() => handleAction('theses')}
+              disabled={loading}
+              className={`flex-1 min-w-[140px] px-6 py-3 rounded-xl font-medium transition-all duration-200
+                ${activeAction === 'theses' && loading
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-600 hover:text-white'
+                }
+                disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {activeAction === 'theses' && loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Анализ...
+                </span>
+              ) : (
+                '📋 Тезисы'
+              )}
+            </button>
+
+            <button
+              onClick={() => handleAction('telegram')}
+              disabled={loading}
+              className={`flex-1 min-w-[140px] px-6 py-3 rounded-xl font-medium transition-all duration-200
+                ${activeAction === 'telegram' && loading
+                  ? 'bg-sky-600 text-white'
+                  : 'bg-sky-100 text-sky-700 hover:bg-sky-600 hover:text-white'
+                }
+                disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {activeAction === 'telegram' && loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Генерация...
+                </span>
+              ) : (
+                '✈️ Пост для Telegram'
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Блок результата */}
+        {(result || loading) && (
+          <div className="bg-white rounded-2xl shadow-xl p-8 animate-fade-in">
+            <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+              Результат
+            </h2>
+            <div className="bg-slate-50 rounded-xl p-6 min-h-[200px]">
+              {loading ? (
+                <div className="flex items-center justify-center h-[200px]">
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                    <p className="text-slate-500">AI анализирует статью...</p>
+                  </div>
+                </div>
+              ) : (
+                <pre className="whitespace-pre-wrap text-slate-700 font-sans leading-relaxed">
+                  {result}
+                </pre>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Футер */}
+        <p className="text-center text-slate-400 text-sm mt-8">
+          Вставьте ссылку на англоязычную статью и выберите действие
+        </p>
+      </div>
     </main>
   );
 }
-
-
-
