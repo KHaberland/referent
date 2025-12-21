@@ -51,8 +51,9 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error('OpenRouter API error:', errorData);
+      const errorMessage = errorData?.error?.message || errorData?.message || JSON.stringify(errorData);
       return NextResponse.json(
-        { error: `Ошибка API OpenRouter: ${response.status}` },
+        { error: `Ошибка API OpenRouter: ${response.status} - ${errorMessage}` },
         { status: response.status }
       );
     }
