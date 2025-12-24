@@ -117,9 +117,25 @@ export default function Home() {
         }
 
         setResult(`📄 ${parsed.title}\n📅 Дата: ${parsed.date || 'не указана'}\n\n────────────────────────────\n\n${thesesData.theses}`);
-      } else {
-        // TODO: telegram
-        setResult(`📄 Статья: ${parsed.title}\n📅 Дата: ${parsed.date || 'не указана'}\n\n[Здесь будет AI-пост для Telegram...]`);
+      } else if (action === 'telegram') {
+        // Пост для Telegram
+        const telegramResponse = await fetch('/api/telegram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            content: parsed.content,
+            title: parsed.title,
+            url: url
+          }),
+        });
+
+        const telegramData = await telegramResponse.json();
+
+        if (!telegramResponse.ok) {
+          throw new Error(telegramData.error || 'Ошибка генерации поста');
+        }
+
+        setResult(`✈️ Пост для Telegram\n\n────────────────────────────\n\n${telegramData.post}`);
       }
     } catch (error) {
       setResult(`Ошибка: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
