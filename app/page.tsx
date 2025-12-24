@@ -81,14 +81,45 @@ export default function Home() {
         }
 
         setResult(`📄 ${parsed.title}\n📅 Дата: ${parsed.date || 'не указана'}\n\n────────────────────────────\n\n${translateData.translation}`);
+      } else if (action === 'summary') {
+        // Анализ статьи — о чём она
+        const summaryResponse = await fetch('/api/summary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            content: parsed.content,
+            title: parsed.title 
+          }),
+        });
+
+        const summaryData = await summaryResponse.json();
+
+        if (!summaryResponse.ok) {
+          throw new Error(summaryData.error || 'Ошибка анализа');
+        }
+
+        setResult(`📄 ${parsed.title}\n📅 Дата: ${parsed.date || 'не указана'}\n\n────────────────────────────\n\n${summaryData.summary}`);
+      } else if (action === 'theses') {
+        // Тезисы статьи
+        const thesesResponse = await fetch('/api/theses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            content: parsed.content,
+            title: parsed.title 
+          }),
+        });
+
+        const thesesData = await thesesResponse.json();
+
+        if (!thesesResponse.ok) {
+          throw new Error(thesesData.error || 'Ошибка генерации тезисов');
+        }
+
+        setResult(`📄 ${parsed.title}\n📅 Дата: ${parsed.date || 'не указана'}\n\n────────────────────────────\n\n${thesesData.theses}`);
       } else {
-        // TODO: Здесь будет логика обращения к AI API
-        const actionTexts = {
-          summary: `📄 Статья: ${parsed.title}\n📅 Дата: ${parsed.date || 'не указана'}\n\n[Здесь будет AI-анализ о чем статья...]`,
-          theses: `📄 Статья: ${parsed.title}\n📅 Дата: ${parsed.date || 'не указана'}\n\n[Здесь будут AI-сгенерированные тезисы...]`,
-          telegram: `📄 Статья: ${parsed.title}\n📅 Дата: ${parsed.date || 'не указана'}\n\n[Здесь будет AI-пост для Telegram...]`,
-        };
-        setResult(actionTexts[action!] || '');
+        // TODO: telegram
+        setResult(`📄 Статья: ${parsed.title}\n📅 Дата: ${parsed.date || 'не указана'}\n\n[Здесь будет AI-пост для Telegram...]`);
       }
     } catch (error) {
       setResult(`Ошибка: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
