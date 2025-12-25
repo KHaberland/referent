@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ErrorAlert } from '@/components/ui/alert';
 import { ErrorCode, errorMessages, ApiError } from '@/lib/errors';
+
+const LAST_URL_KEY = 'referent_last_url';
 
 type ActionType = 'summary' | 'theses' | 'telegram' | null;
 
@@ -27,8 +29,53 @@ export default function Home() {
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [error, setError] = useState<ErrorState | null>(null);
   const [copied, setCopied] = useState(false);
+  const [lastUrl, setLastUrl] = useState<string | null>(null);
+  const [showLastUrl, setShowLastUrl] = useState(false);
   
   const resultRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Загружаем последний URL из localStorage при монтировании
+  useEffect(() => {
+    const savedUrl = localStorage.getItem(LAST_URL_KEY);
+    if (savedUrl) {
+      setLastUrl(savedUrl);
+    }
+  }, []);
+
+  // Закрываем выпадающий список при клике вне его
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current && 
+        !dropdownRef.current.contains(event.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(event.target as Node)
+      ) {
+        setShowLastUrl(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Обработчик клика на поле ввода
+  const handleInputClick = () => {
+    if (!url.trim() && lastUrl) {
+      setShowLastUrl(true);
+    }
+  };
+
+  // Выбор последнего URL
+  const handleSelectLastUrl = () => {
+    if (lastUrl) {
+      setUrl(lastUrl);
+      setShowLastUrl(false);
+      if (error) setError(null);
+    }
+  };
 
   // Получение дружественного сообщения из ошибки API
   const getErrorMessage = (apiError: ApiError | undefined, fallbackMessage: string): ErrorState => {
@@ -103,6 +150,10 @@ export default function Home() {
       // Сначала парсим статью
       const parsed = await parseArticle();
       setParsedData(parsed);
+      
+      // Сохраняем URL в localStorage при успешном парсинге
+      localStorage.setItem(LAST_URL_KEY, url);
+      setLastUrl(url);
 
       if (!parsed || !parsed.content) {
         setError({
@@ -275,18 +326,41 @@ export default function Home() {
           <label htmlFor="url" className="block text-sm font-medium text-slate-700 mb-2">
             URL англоязычной статьи
           </label>
-          <input
-            id="url"
-            type="url"
-            value={url}
-            onChange={(e) => {
-              setUrl(e.target.value);
-              // Сбрасываем ошибку при изменении URL
-              if (error) setError(null);
-            }}
-            placeholder="https://example.com/article"
-            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all text-slate-800 placeholder:text-slate-400 text-sm sm:text-base"
-          />
+          <div className="relative">
+            <input
+              ref={inputRef}
+              id="url"
+              type="url"
+              value={url}
+              onChange={(e) => {
+                setUrl(e.target.value);
+                setShowLastUrl(false);
+                // Сбрасываем ошибку при изменении URL
+                if (error) setError(null);
+              }}
+              onClick={handleInputClick}
+              placeholder="https://example.com/article"
+              className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all text-slate-800 placeholder:text-slate-400 text-sm sm:text-base"
+            />
+            
+            {/* Выпадающий список с последним URL */}
+            {showLastUrl && lastUrl && (
+              <div
+                ref={dropdownRef}
+                className="absolute z-10 w-full mt-1 bg-white rounded-lg sm:rounded-xl border border-slate-200 shadow-lg overflow-hidden animate-fade-in"
+              >
+                <button
+                  onClick={handleSelectLastUrl}
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-left hover:bg-indigo-50 transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-slate-600 text-sm truncate">{lastUrl}</span>
+                </button>
+              </div>
+            )}
+          </div>
           <div className="flex items-center justify-between mt-2">
             <p className="text-xs text-slate-500">
               Укажите ссылку на англоязычную статью
