@@ -16,6 +16,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [activeAction, setActiveAction] = useState<ActionType>(null);
   const [parsedData, setParsedData] = useState<ParsedArticle | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string>('');
 
   const parseArticle = async (): Promise<ParsedArticle | null> => {
     try {
@@ -47,6 +48,7 @@ export default function Home() {
     setActiveAction(action);
     setResult('');
     setParsedData(null);
+    setStatusMessage('Загружаю статью…');
 
     try {
       // Сначала парсим статью
@@ -56,8 +58,11 @@ export default function Home() {
       if (!parsed || !parsed.content) {
         setResult('Не удалось извлечь контент статьи');
         setLoading(false);
+        setStatusMessage('');
         return;
       }
+
+      setStatusMessage('Анализирую контент…');
 
       if (action === 'summary') {
         // Анализ статьи — о чём она
@@ -119,6 +124,7 @@ export default function Home() {
       setResult(`Ошибка: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
     } finally {
       setLoading(false);
+      setStatusMessage('');
     }
   };
 
@@ -145,15 +151,19 @@ export default function Home() {
             type="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://example.com/article"
+            placeholder="Введите URL статьи, например: https://example.com/article"
             className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all text-slate-800 placeholder:text-slate-400"
           />
+          <p className="text-xs text-slate-500 mt-2">
+            Укажите ссылку на англоязычную статью
+          </p>
 
           {/* Кнопки действий */}
           <div className="flex flex-wrap gap-3 mt-6">
             <button
               onClick={() => handleAction('summary')}
               disabled={loading}
+              title="Краткое описание основной темы и содержания статьи"
               className={`flex-1 min-w-[140px] px-6 py-3 rounded-xl font-medium transition-all duration-200
                 ${activeAction === 'summary' && loading
                   ? 'bg-indigo-600 text-white'
@@ -177,6 +187,7 @@ export default function Home() {
             <button
               onClick={() => handleAction('theses')}
               disabled={loading}
+              title="Список ключевых тезисов и выводов из статьи"
               className={`flex-1 min-w-[140px] px-6 py-3 rounded-xl font-medium transition-all duration-200
                 ${activeAction === 'theses' && loading
                   ? 'bg-emerald-600 text-white'
@@ -200,6 +211,7 @@ export default function Home() {
             <button
               onClick={() => handleAction('telegram')}
               disabled={loading}
+              title="Готовый пост для публикации в Telegram-канале"
               className={`flex-1 min-w-[140px] px-6 py-3 rounded-xl font-medium transition-all duration-200
                 ${activeAction === 'telegram' && loading
                   ? 'bg-sky-600 text-white'
@@ -221,6 +233,14 @@ export default function Home() {
             </button>
           </div>
         </div>
+
+        {/* Блок статуса процесса */}
+        {statusMessage && (
+          <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-5 py-3 mb-4 flex items-center gap-3 animate-fade-in">
+            <div className="w-4 h-4 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin"></div>
+            <span className="text-indigo-700 text-sm font-medium">{statusMessage}</span>
+          </div>
+        )}
 
         {/* Блок результата */}
         {(result || loading) && (
