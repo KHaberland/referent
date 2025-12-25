@@ -258,20 +258,20 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen py-12 px-4">
+    <main className="min-h-screen py-6 px-4 sm:py-8 md:py-12">
       <div className="max-w-3xl mx-auto">
         {/* Заголовок */}
-        <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-3">
+        <div className="text-center mb-6 sm:mb-8 md:mb-10">
+          <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2 sm:mb-3">
             Referent
           </h1>
-          <p className="text-slate-600 text-lg">
+          <p className="text-slate-600 text-base sm:text-lg px-2">
             AI-помощник для анализа англоязычных статей
           </p>
         </div>
 
         {/* Форма ввода URL */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 mb-6">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 md:p-8 mb-4 sm:mb-6">
           <label htmlFor="url" className="block text-sm font-medium text-slate-700 mb-2">
             URL англоязычной статьи
           </label>
@@ -284,8 +284,8 @@ export default function Home() {
               // Сбрасываем ошибку при изменении URL
               if (error) setError(null);
             }}
-            placeholder="Введите URL статьи, например: https://example.com/article"
-            className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all text-slate-800 placeholder:text-slate-400"
+            placeholder="https://example.com/article"
+            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all text-slate-800 placeholder:text-slate-400 text-sm sm:text-base"
           />
           <div className="flex items-center justify-between mt-2">
             <p className="text-xs text-slate-500">
@@ -307,12 +307,12 @@ export default function Home() {
           </div>
 
           {/* Кнопки действий */}
-          <div className="flex flex-wrap gap-3 mt-4">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4">
             <button
               onClick={() => handleAction('summary')}
               disabled={loading}
               title="Краткое описание основной темы и содержания статьи"
-              className={`flex-1 min-w-[140px] px-6 py-3 rounded-xl font-medium transition-all duration-200
+              className={`w-full sm:flex-1 px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-medium transition-all duration-200 text-sm sm:text-base
                 ${activeAction === 'summary' && loading
                   ? 'bg-indigo-600 text-white'
                   : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-600 hover:text-white'
@@ -321,7 +321,7 @@ export default function Home() {
             >
               {activeAction === 'summary' && loading ? (
                 <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <svg className="animate-spin h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
@@ -336,7 +336,7 @@ export default function Home() {
               onClick={() => handleAction('theses')}
               disabled={loading}
               title="Список ключевых тезисов и выводов из статьи"
-              className={`flex-1 min-w-[140px] px-6 py-3 rounded-xl font-medium transition-all duration-200
+              className={`w-full sm:flex-1 px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-medium transition-all duration-200 text-sm sm:text-base
                 ${activeAction === 'theses' && loading
                   ? 'bg-emerald-600 text-white'
                   : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-600 hover:text-white'
@@ -345,7 +345,7 @@ export default function Home() {
             >
               {activeAction === 'theses' && loading ? (
                 <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <svg className="animate-spin h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
@@ -360,7 +360,7 @@ export default function Home() {
               onClick={() => handleAction('telegram')}
               disabled={loading}
               title="Готовый пост для публикации в Telegram-канале"
-              className={`flex-1 min-w-[140px] px-6 py-3 rounded-xl font-medium transition-all duration-200
+              className={`w-full sm:flex-1 px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-medium transition-all duration-200 text-sm sm:text-base
                 ${activeAction === 'telegram' && loading
                   ? 'bg-sky-600 text-white'
                   : 'bg-sky-100 text-sky-700 hover:bg-sky-600 hover:text-white'
@@ -369,14 +369,14 @@ export default function Home() {
             >
               {activeAction === 'telegram' && loading ? (
                 <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <svg className="animate-spin h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                   Генерация...
                 </span>
               ) : (
-                '✈️ Пост для Telegram'
+                '✈️ Telegram'
               )}
             </button>
           </div>
@@ -384,7 +384,7 @@ export default function Home() {
 
         {/* Блок ошибки */}
         {error && (
-          <div className="mb-6">
+          <div className="mb-4 sm:mb-6">
             <ErrorAlert
               title={error.title}
               message={error.message}
@@ -396,17 +396,17 @@ export default function Home() {
 
         {/* Блок статуса процесса */}
         {statusMessage && (
-          <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-5 py-3 mb-4 flex items-center gap-3 animate-fade-in">
-            <div className="w-4 h-4 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin"></div>
-            <span className="text-indigo-700 text-sm font-medium">{statusMessage}</span>
+          <div className="bg-indigo-50 border border-indigo-200 rounded-lg sm:rounded-xl px-3 sm:px-5 py-2.5 sm:py-3 mb-3 sm:mb-4 flex items-center gap-2 sm:gap-3 animate-fade-in">
+            <div className="w-4 h-4 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin flex-shrink-0"></div>
+            <span className="text-indigo-700 text-xs sm:text-sm font-medium">{statusMessage}</span>
           </div>
         )}
 
         {/* Блок результата */}
         {(result || loading) && !error && (
-          <div ref={resultRef} className="bg-white rounded-2xl shadow-xl p-8 animate-fade-in">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+          <div ref={resultRef} className="bg-white rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 md:p-8 animate-fade-in">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h2 className="text-base sm:text-lg font-semibold text-slate-800 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
                 Результат
               </h2>
@@ -414,7 +414,7 @@ export default function Home() {
               {result && !loading && (
                 <button
                   onClick={handleCopy}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
                     copied
                       ? 'bg-green-100 text-green-700'
                       : 'bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-700'
@@ -422,32 +422,33 @@ export default function Home() {
                 >
                   {copied ? (
                     <>
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      Скопировано
+                      <span className="hidden xs:inline">Скопировано</span>
+                      <span className="xs:hidden">✓</span>
                     </>
                   ) : (
                     <>
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                       </svg>
-                      Копировать
+                      <span className="hidden sm:inline">Копировать</span>
                     </>
                   )}
                 </button>
               )}
             </div>
-            <div className="bg-slate-50 rounded-xl p-6 min-h-[200px] overflow-auto max-h-[500px]">
+            <div className="bg-slate-50 rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-6 min-h-[150px] sm:min-h-[200px] overflow-auto max-h-[400px] sm:max-h-[500px]">
               {loading ? (
-                <div className="flex items-center justify-center h-[200px]">
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                    <p className="text-slate-500">AI анализирует статью...</p>
+                <div className="flex items-center justify-center h-[150px] sm:h-[200px]">
+                  <div className="flex flex-col items-center gap-3 sm:gap-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                    <p className="text-slate-500 text-sm sm:text-base">AI анализирует статью...</p>
                   </div>
                 </div>
               ) : (
-                <pre className="whitespace-pre-wrap text-slate-700 font-mono text-sm leading-relaxed">
+                <pre className="whitespace-pre-wrap text-slate-700 font-mono text-xs sm:text-sm leading-relaxed break-words">
                   {result}
                 </pre>
               )}
@@ -456,7 +457,7 @@ export default function Home() {
         )}
 
         {/* Футер */}
-        <p className="text-center text-slate-400 text-sm mt-8">
+        <p className="text-center text-slate-400 text-xs sm:text-sm mt-6 sm:mt-8 px-4">
           Вставьте ссылку на англоязычную статью и выберите действие
         </p>
       </div>
