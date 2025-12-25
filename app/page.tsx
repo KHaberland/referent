@@ -4,7 +4,8 @@ import { useState, useRef, useEffect } from 'react';
 import { ErrorAlert } from '@/components/ui/alert';
 import { ErrorCode, errorMessages, ApiError } from '@/lib/errors';
 
-const LAST_URL_KEY = 'referent_last_url';
+const URL_HISTORY_KEY = 'referent_url_history';
+const MAX_HISTORY_SIZE = 5;
 
 type ActionType = 'summary' | 'theses' | 'telegram' | null;
 
@@ -29,20 +30,53 @@ export default function Home() {
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [error, setError] = useState<ErrorState | null>(null);
   const [copied, setCopied] = useState(false);
-  const [lastUrl, setLastUrl] = useState<string | null>(null);
-  const [showLastUrl, setShowLastUrl] = useState(false);
+  const [urlHistory, setUrlHistory] = useState<string[]>([]);
+  const [showUrlHistory, setShowUrlHistory] = useState(false);
   
   const resultRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Загружаем последний URL из localStorage при монтировании
+  // Загружаем историю URL из localStorage при монтировании
   useEffect(() => {
-    const savedUrl = localStorage.getItem(LAST_URL_KEY);
-    if (savedUrl) {
-      setLastUrl(savedUrl);
+    const savedHistory = localStorage.getItem(URL_HISTORY_KEY);
+    if (savedHistory) {
+      try {
+        const parsed = JSON.parse(savedHistory);
+        if (Array.isArray(parsed)) {
+          setUrlHistory(parsed.slice(0, MAX_HISTORY_SIZE));
+        }
+      } catch {
+        // Если старый формат (одиночный URL), конвертируем
+        const oldUrl = localStorage.getItem('referent_last_url');
+        if (oldUrl) {
+          setUrlHistory([oldUrl]);
+          localStorage.setItem(URL_HISTORY_KEY, JSON.stringify([oldUrl]));
+          localStorage.removeItem('referent_last_url');
+        }
+      }
+    } else {
+      // Миграция со старого формата
+      const oldUrl = localStorage.getItem('referent_last_url');
+      if (oldUrl) {
+        setUrlHistory([oldUrl]);
+        localStorage.setItem(URL_HISTORY_KEY, JSON.stringify([oldUrl]));
+        localStorage.removeItem('referent_last_url');
+      }
     }
   }, []);
+
+  // Добавление URL в историю
+  const addUrlToHistory = (newUrl: string) => {
+    setUrlHistory(prev => {
+      // Удаляем дубликаты и добавляем новый URL в начало
+      const filtered = prev.filter(u => u !== newUrl);
+      const updated = [newUrl, ...filtered].slice(0, MAX_HISTORY_SIZE);
+      localStorage.setItem(URL_HISTORY_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  };
 
   // Закрываем выпадающий список при клике вне его
   useEffect(() => {
@@ -50,10 +84,10 @@ export default function Home() {
       if (
         dropdownRef.current && 
         !dropdownRef.current.contains(event.target as Node) &&
-        inputRef.current &&
-        !inputRef.current.contains(event.target as Node)
+        dropdownButtonRef.current &&
+        !dropdownButtonRef.current.contains(event.target as Node)
       ) {
-        setShowLastUrl(false);
+        setShowUrlHistory(false);
       }
     };
 
@@ -61,20 +95,18 @@ export default function Home() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Обработчик клика на поле ввода
-  const handleInputClick = () => {
-    if (!url.trim() && lastUrl) {
-      setShowLastUrl(true);
+  // Переключение выпадающего списка
+  const toggleUrlHistory = () => {
+    if (urlHistory.length > 0) {
+      setShowUrlHistory(prev => !prev);
     }
   };
 
-  // Выбор последнего URL
-  const handleSelectLastUrl = () => {
-    if (lastUrl) {
-      setUrl(lastUrl);
-      setShowLastUrl(false);
-      if (error) setError(null);
-    }
+  // Выбор URL из истории
+  const handleSelectUrl = (selectedUrl: string) => {
+    setUrl(selectedUrl);
+    setShowUrlHistory(false);
+    if (error) setError(null);
   };
 
   // Получение дружественного сообщения из ошибки API
@@ -151,9 +183,8 @@ export default function Home() {
       const parsed = await parseArticle();
       setParsedData(parsed);
       
-      // Сохраняем URL в localStorage при успешном парсинге
-      localStorage.setItem(LAST_URL_KEY, url);
-      setLastUrl(url);
+      // Сохраняем URL в историю при успешном парсинге
+      addUrlToHistory(url);
 
       if (!parsed || !parsed.content) {
         setError({
@@ -327,37 +358,61 @@ export default function Home() {
             URL англоязычной статьи
           </label>
           <div className="relative">
-            <input
-              ref={inputRef}
-              id="url"
-              type="url"
-              value={url}
-              onChange={(e) => {
-                setUrl(e.target.value);
-                setShowLastUrl(false);
-                // Сбрасываем ошибку при изменении URL
-                if (error) setError(null);
-              }}
-              onClick={handleInputClick}
-              placeholder="https://example.com/article"
-              className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all text-slate-800 placeholder:text-slate-400 text-sm sm:text-base"
-            />
+            <div className="relative flex items-center">
+              <input
+                ref={inputRef}
+                id="url"
+                type="url"
+                value={url}
+                onChange={(e) => {
+                  setUrl(e.target.value);
+                  setShowUrlHistory(false);
+                  // Сбрасываем ошибку при изменении URL
+                  if (error) setError(null);
+                }}
+                placeholder="https://example.com/article"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 pr-10 rounded-lg sm:rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all text-slate-800 placeholder:text-slate-400 text-sm sm:text-base"
+              />
+              
+              {/* Кнопка выпадающего списка */}
+              {urlHistory.length > 0 && (
+                <button
+                  ref={dropdownButtonRef}
+                  onClick={toggleUrlHistory}
+                  type="button"
+                  className="absolute right-2 sm:right-3 p-1 hover:bg-slate-100 rounded transition-colors"
+                  title="История URL"
+                >
+                  <svg 
+                    className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${showUrlHistory ? 'rotate-180' : ''}`} 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              )}
+            </div>
             
-            {/* Выпадающий список с последним URL */}
-            {showLastUrl && lastUrl && (
+            {/* Выпадающий список с историей URL */}
+            {showUrlHistory && urlHistory.length > 0 && (
               <div
                 ref={dropdownRef}
                 className="absolute z-10 w-full mt-1 bg-white rounded-lg sm:rounded-xl border border-slate-200 shadow-lg overflow-hidden animate-fade-in"
               >
-                <button
-                  onClick={handleSelectLastUrl}
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-left hover:bg-indigo-50 transition-colors flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span className="text-slate-600 text-sm truncate">{lastUrl}</span>
-                </button>
+                {urlHistory.map((historyUrl, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleSelectUrl(historyUrl)}
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-left hover:bg-indigo-50 transition-colors flex items-center gap-2 border-b border-slate-100 last:border-b-0"
+                  >
+                    <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-slate-600 text-sm truncate">{historyUrl}</span>
+                  </button>
+                ))}
               </div>
             )}
           </div>
