@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ErrorCode, createError } from '@/lib/errors';
 
 export async function POST(request: NextRequest) {
   try {
@@ -6,7 +7,7 @@ export async function POST(request: NextRequest) {
 
     if (!content) {
       return NextResponse.json(
-        { error: 'Контент статьи не указан' },
+        { error: createError(ErrorCode.CONTENT_REQUIRED) },
         { status: 400 }
       );
     }
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: 'API ключ OpenRouter не настроен' },
+        { error: createError(ErrorCode.AI_API_KEY_MISSING) },
         { status: 500 }
       );
     }
@@ -58,9 +59,23 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error('OpenRouter API error:', errorData);
-      const errorMessage = errorData?.error?.message || errorData?.message || JSON.stringify(errorData);
+      
+      if (response.status === 429) {
+        return NextResponse.json(
+          { error: createError(ErrorCode.AI_RATE_LIMITED) },
+          { status: 429 }
+        );
+      }
+      
+      if (response.status >= 500) {
+        return NextResponse.json(
+          { error: createError(ErrorCode.AI_SERVICE_UNAVAILABLE) },
+          { status: 502 }
+        );
+      }
+      
       return NextResponse.json(
-        { error: `Ошибка API OpenRouter: ${response.status} - ${errorMessage}` },
+        { error: createError(ErrorCode.AI_SERVICE_ERROR, `HTTP ${response.status}`) },
         { status: response.status }
       );
     }
@@ -70,7 +85,7 @@ export async function POST(request: NextRequest) {
 
     if (!post) {
       return NextResponse.json(
-        { error: 'Не удалось сгенерировать пост' },
+        { error: createError(ErrorCode.AI_SERVICE_ERROR, 'Empty response from AI') },
         { status: 500 }
       );
     }
@@ -78,10 +93,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ post });
   } catch (error) {
     console.error('Telegram post error:', error);
+    
+    const details = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: `Ошибка генерации: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}` },
+      { error: createError(ErrorCode.AI_SERVICE_ERROR, details) },
       { status: 500 }
     );
   }
 }
-

@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { ErrorAlert } from '@/components/ui/alert';
+import { ErrorCode, errorMessages, ApiError } from '@/lib/errors';
 
 type ActionType = 'summary' | 'theses' | 'telegram' | null;
 
@@ -10,6 +12,12 @@ interface ParsedArticle {
   content: string | null;
 }
 
+interface ErrorState {
+  title: string;
+  message: string;
+  code?: ErrorCode;
+}
+
 export default function Home() {
   const [url, setUrl] = useState('');
   const [result, setResult] = useState('');
@@ -17,36 +25,74 @@ export default function Home() {
   const [activeAction, setActiveAction] = useState<ActionType>(null);
   const [parsedData, setParsedData] = useState<ParsedArticle | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>('');
+  const [error, setError] = useState<ErrorState | null>(null);
+
+  // Получение дружественного сообщения из ошибки API
+  const getErrorMessage = (apiError: ApiError | undefined, fallbackMessage: string): ErrorState => {
+    if (apiError && apiError.code && apiError.message) {
+      return {
+        title: getErrorTitle(apiError.code),
+        message: apiError.message,
+        code: apiError.code,
+      };
+    }
+    return {
+      title: 'Ошибка',
+      message: fallbackMessage,
+    };
+  };
+
+  // Заголовок ошибки по коду
+  const getErrorTitle = (code: ErrorCode): string => {
+    if (code.startsWith('ARTICLE_')) return 'Ошибка загрузки статьи';
+    if (code.startsWith('AI_')) return 'Ошибка анализа';
+    if (code.startsWith('INVALID_') || code.startsWith('URL_') || code.startsWith('CONTENT_')) return 'Ошибка валидации';
+    if (code === ErrorCode.NETWORK_ERROR) return 'Ошибка сети';
+    return 'Ошибка';
+  };
 
   const parseArticle = async (): Promise<ParsedArticle | null> => {
-    try {
-      const response = await fetch('/api/parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
-      });
+    const response = await fetch('/api/parse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Ошибка парсинга');
-      }
-
-      return data;
-    } catch (error) {
-      throw error;
+    if (!response.ok) {
+      throw getErrorMessage(data.error, 'Не удалось загрузить статью по этой ссылке.');
     }
+
+    return data;
   };
 
   const handleAction = async (action: ActionType) => {
     if (!url.trim()) {
-      setResult('Пожалуйста, введите URL статьи');
+      setError({
+        title: 'Ошибка валидации',
+        message: errorMessages[ErrorCode.URL_REQUIRED],
+        code: ErrorCode.URL_REQUIRED,
+      });
+      return;
+    }
+
+    // Проверяем URL на корректность
+    try {
+      new URL(url);
+    } catch {
+      setError({
+        title: 'Ошибка валидации',
+        message: errorMessages[ErrorCode.INVALID_URL],
+        code: ErrorCode.INVALID_URL,
+      });
       return;
     }
 
     setLoading(true);
     setActiveAction(action);
     setResult('');
+    setError(null);
     setParsedData(null);
     setStatusMessage('Загружаю статью…');
 
@@ -56,7 +102,11 @@ export default function Home() {
       setParsedData(parsed);
 
       if (!parsed || !parsed.content) {
-        setResult('Не удалось извлечь контент статьи');
+        setError({
+          title: 'Ошибка загрузки статьи',
+          message: errorMessages[ErrorCode.ARTICLE_EMPTY_CONTENT],
+          code: ErrorCode.ARTICLE_EMPTY_CONTENT,
+        });
         setLoading(false);
         setStatusMessage('');
         return;
@@ -78,7 +128,7 @@ export default function Home() {
         const summaryData = await summaryResponse.json();
 
         if (!summaryResponse.ok) {
-          throw new Error(summaryData.error || 'Ошибка анализа');
+          throw getErrorMessage(summaryData.error, 'Ошибка при анализе статьи.');
         }
 
         setResult(`📄 ${parsed.title}\n📅 Дата: ${parsed.date || 'не указана'}\n\n────────────────────────────\n\n${summaryData.summary}`);
@@ -96,7 +146,7 @@ export default function Home() {
         const thesesData = await thesesResponse.json();
 
         if (!thesesResponse.ok) {
-          throw new Error(thesesData.error || 'Ошибка генерации тезисов');
+          throw getErrorMessage(thesesData.error, 'Ошибка при генерации тезисов.');
         }
 
         setResult(`📄 ${parsed.title}\n📅 Дата: ${parsed.date || 'не указана'}\n\n────────────────────────────\n\n${thesesData.theses}`);
@@ -115,17 +165,51 @@ export default function Home() {
         const telegramData = await telegramResponse.json();
 
         if (!telegramResponse.ok) {
-          throw new Error(telegramData.error || 'Ошибка генерации поста');
+          throw getErrorMessage(telegramData.error, 'Ошибка при генерации поста.');
         }
 
         setResult(`✈️ Пост для Telegram\n\n────────────────────────────\n\n${telegramData.post}`);
       }
-    } catch (error) {
-      setResult(`Ошибка: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+    } catch (err) {
+      // Обрабатываем структурированную ошибку
+      if (err && typeof err === 'object' && 'title' in err && 'message' in err) {
+        setError(err as ErrorState);
+      } else if (err instanceof Error) {
+        // Сетевые ошибки
+        if (err.message.includes('fetch') || err.message.includes('network')) {
+          setError({
+            title: 'Ошибка сети',
+            message: errorMessages[ErrorCode.NETWORK_ERROR],
+            code: ErrorCode.NETWORK_ERROR,
+          });
+        } else {
+          setError({
+            title: 'Ошибка',
+            message: errorMessages[ErrorCode.UNKNOWN_ERROR],
+            code: ErrorCode.UNKNOWN_ERROR,
+          });
+        }
+      } else {
+        setError({
+          title: 'Ошибка',
+          message: errorMessages[ErrorCode.UNKNOWN_ERROR],
+          code: ErrorCode.UNKNOWN_ERROR,
+        });
+      }
     } finally {
       setLoading(false);
       setStatusMessage('');
     }
+  };
+
+  const handleRetry = () => {
+    if (activeAction) {
+      handleAction(activeAction);
+    }
+  };
+
+  const handleCloseError = () => {
+    setError(null);
   };
 
   return (
@@ -150,7 +234,11 @@ export default function Home() {
             id="url"
             type="url"
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            onChange={(e) => {
+              setUrl(e.target.value);
+              // Сбрасываем ошибку при изменении URL
+              if (error) setError(null);
+            }}
             placeholder="Введите URL статьи, например: https://example.com/article"
             className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all text-slate-800 placeholder:text-slate-400"
           />
@@ -234,6 +322,18 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Блок ошибки */}
+        {error && (
+          <div className="mb-6">
+            <ErrorAlert
+              title={error.title}
+              message={error.message}
+              onClose={handleCloseError}
+              onRetry={activeAction ? handleRetry : undefined}
+            />
+          </div>
+        )}
+
         {/* Блок статуса процесса */}
         {statusMessage && (
           <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-5 py-3 mb-4 flex items-center gap-3 animate-fade-in">
@@ -243,7 +343,7 @@ export default function Home() {
         )}
 
         {/* Блок результата */}
-        {(result || loading) && (
+        {(result || loading) && !error && (
           <div className="bg-white rounded-2xl shadow-xl p-8 animate-fade-in">
             <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
