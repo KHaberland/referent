@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { ErrorAlert } from '@/components/ui/alert';
 import { ErrorCode, errorMessages, ApiError } from '@/lib/errors';
 
@@ -26,6 +26,9 @@ export default function Home() {
   const [parsedData, setParsedData] = useState<ParsedArticle | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [error, setError] = useState<ErrorState | null>(null);
+  const [copied, setCopied] = useState(false);
+  
+  const resultRef = useRef<HTMLDivElement>(null);
 
   // Получение дружественного сообщения из ошибки API
   const getErrorMessage = (apiError: ApiError | undefined, fallbackMessage: string): ErrorState => {
@@ -132,6 +135,7 @@ export default function Home() {
         }
 
         setResult(`📄 ${parsed.title}\n📅 Дата: ${parsed.date || 'не указана'}\n\n────────────────────────────\n\n${summaryData.summary}`);
+        scrollToResult();
       } else if (action === 'theses') {
         // Тезисы статьи
         const thesesResponse = await fetch('/api/theses', {
@@ -150,6 +154,7 @@ export default function Home() {
         }
 
         setResult(`📄 ${parsed.title}\n📅 Дата: ${parsed.date || 'не указана'}\n\n────────────────────────────\n\n${thesesData.theses}`);
+        scrollToResult();
       } else if (action === 'telegram') {
         // Пост для Telegram
         const telegramResponse = await fetch('/api/telegram', {
@@ -169,6 +174,7 @@ export default function Home() {
         }
 
         setResult(`✈️ Пост для Telegram\n\n────────────────────────────\n\n${telegramData.post}`);
+        scrollToResult();
       }
     } catch (err) {
       // Обрабатываем структурированную ошибку
@@ -212,6 +218,45 @@ export default function Home() {
     setError(null);
   };
 
+  // Функция сброса всех состояний
+  const handleClear = () => {
+    setUrl('');
+    setResult('');
+    setError(null);
+    setParsedData(null);
+    setActiveAction(null);
+    setStatusMessage('');
+    setCopied(false);
+  };
+
+  // Функция копирования результата
+  const handleCopy = async () => {
+    if (!result) return;
+    
+    try {
+      await navigator.clipboard.writeText(result);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback для старых браузеров
+      const textArea = document.createElement('textarea');
+      textArea.value = result;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  // Прокрутка к результатам
+  const scrollToResult = () => {
+    setTimeout(() => {
+      resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
   return (
     <main className="min-h-screen py-12 px-4">
       <div className="max-w-3xl mx-auto">
@@ -242,12 +287,27 @@ export default function Home() {
             placeholder="Введите URL статьи, например: https://example.com/article"
             className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all text-slate-800 placeholder:text-slate-400"
           />
-          <p className="text-xs text-slate-500 mt-2">
-            Укажите ссылку на англоязычную статью
-          </p>
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-xs text-slate-500">
+              Укажите ссылку на англоязычную статью
+            </p>
+            {/* Кнопка очистки */}
+            {(url || result || error) && (
+              <button
+                onClick={handleClear}
+                disabled={loading}
+                className="text-xs text-slate-500 hover:text-red-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Очистить
+              </button>
+            )}
+          </div>
 
           {/* Кнопки действий */}
-          <div className="flex flex-wrap gap-3 mt-6">
+          <div className="flex flex-wrap gap-3 mt-4">
             <button
               onClick={() => handleAction('summary')}
               disabled={loading}
@@ -344,11 +404,40 @@ export default function Home() {
 
         {/* Блок результата */}
         {(result || loading) && !error && (
-          <div className="bg-white rounded-2xl shadow-xl p-8 animate-fade-in">
-            <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
-              Результат
-            </h2>
+          <div ref={resultRef} className="bg-white rounded-2xl shadow-xl p-8 animate-fade-in">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                Результат
+              </h2>
+              {/* Кнопка копирования */}
+              {result && !loading && (
+                <button
+                  onClick={handleCopy}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    copied
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-700'
+                  }`}
+                >
+                  {copied ? (
+                    <>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Скопировано
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      Копировать
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
             <div className="bg-slate-50 rounded-xl p-6 min-h-[200px] overflow-auto max-h-[500px]">
               {loading ? (
                 <div className="flex items-center justify-center h-[200px]">
