@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ErrorCode, createError } from '@/lib/errors';
 
+// Таймаут для генерации изображений (FLUX.1-schnell быстрая - 3-10 сек)
+export const maxDuration = 30;
+
 export async function POST(request: NextRequest) {
   try {
     const { prompt } = await request.json();
@@ -21,9 +24,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Используем Stable Diffusion XL через Hugging Face Inference API
+    // Используем FLUX.1-schnell через Hugging Face Inference API (быстрая модель 3-10 сек)
     const response = await fetch(
-      'https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0',
+      'https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell',
       {
         method: 'POST',
         headers: {
@@ -33,8 +36,7 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           inputs: prompt,
           parameters: {
-            num_inference_steps: 30,
-            guidance_scale: 7.5,
+            num_inference_steps: 4,
             width: 1024,
             height: 1024,
           },

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ErrorCode, createError } from '@/lib/errors';
 
+// Увеличиваем таймаут для генерации промпта
+export const maxDuration = 30;
+
 export async function POST(request: NextRequest) {
   try {
     const { content, title } = await request.json();
