@@ -19,6 +19,10 @@ export enum ErrorCode {
   AI_RATE_LIMITED = 'AI_RATE_LIMITED',
   AI_API_KEY_MISSING = 'AI_API_KEY_MISSING',
   
+  // Ошибки генерации изображений
+  IMAGE_GENERATION_FAILED = 'IMAGE_GENERATION_FAILED',
+  IMAGE_API_KEY_MISSING = 'IMAGE_API_KEY_MISSING',
+  
   // Общие ошибки
   NETWORK_ERROR = 'NETWORK_ERROR',
   UNKNOWN_ERROR = 'UNKNOWN_ERROR',
@@ -44,6 +48,10 @@ export const errorMessages: Record<ErrorCode, string> = {
   [ErrorCode.AI_SERVICE_UNAVAILABLE]: 'Сервис анализа временно недоступен. Попробуйте позже.',
   [ErrorCode.AI_RATE_LIMITED]: 'Слишком много запросов. Пожалуйста, подождите немного.',
   [ErrorCode.AI_API_KEY_MISSING]: 'Сервис анализа не настроен. Обратитесь к администратору.',
+  
+  // Ошибки генерации изображений
+  [ErrorCode.IMAGE_GENERATION_FAILED]: 'Не удалось сгенерировать изображение. Попробуйте ещё раз.',
+  [ErrorCode.IMAGE_API_KEY_MISSING]: 'Сервис генерации изображений не настроен. Обратитесь к администратору.',
   
   // Общие ошибки
   [ErrorCode.NETWORK_ERROR]: 'Ошибка сети. Проверьте подключение к интернету.',

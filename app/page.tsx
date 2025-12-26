@@ -7,7 +7,7 @@ import { ErrorCode, errorMessages, ApiError } from '@/lib/errors';
 const URL_HISTORY_KEY = 'referent_url_history';
 const MAX_HISTORY_SIZE = 5;
 
-type ActionType = 'summary' | 'theses' | 'telegram' | null;
+type ActionType = 'summary' | 'theses' | 'telegram' | 'illustration' | null;
 
 interface ParsedArticle {
   date: string | null;
@@ -32,6 +32,8 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
   const [urlHistory, setUrlHistory] = useState<string[]>([]);
   const [showUrlHistory, setShowUrlHistory] = useState(false);
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [imagePrompt, setImagePrompt] = useState<string | null>(null);
   
   const resultRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -176,6 +178,8 @@ export default function Home() {
     setResult('');
     setError(null);
     setParsedData(null);
+    setGeneratedImage(null);
+    setImagePrompt(null);
     setStatusMessage('Загружаю статью…');
 
     try {
@@ -257,6 +261,45 @@ export default function Home() {
 
         setResult(`✈️ Пост для Telegram\n\n────────────────────────────\n\n${telegramData.post}`);
         scrollToResult();
+      } else if (action === 'illustration') {
+        // Генерация иллюстрации
+        setStatusMessage('Создаю промпт для изображения…');
+        
+        // Шаг 1: Генерируем промпт через OpenRouter
+        const promptResponse = await fetch('/api/image-prompt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            content: parsed.content,
+            title: parsed.title 
+          }),
+        });
+
+        const promptData = await promptResponse.json();
+
+        if (!promptResponse.ok) {
+          throw getErrorMessage(promptData.error, 'Ошибка при создании промпта для изображения.');
+        }
+
+        setImagePrompt(promptData.prompt);
+        setStatusMessage('Генерирую изображение…');
+
+        // Шаг 2: Генерируем изображение через Hugging Face
+        const imageResponse = await fetch('/api/image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: promptData.prompt }),
+        });
+
+        const imageData = await imageResponse.json();
+
+        if (!imageResponse.ok) {
+          throw getErrorMessage(imageData.error, 'Ошибка при генерации изображения.');
+        }
+
+        setGeneratedImage(imageData.imageUrl);
+        setResult(`📄 ${parsed.title}\n📅 Дата: ${parsed.date || 'не указана'}\n\n────────────────────────────\n\n🎨 Промпт: ${promptData.prompt}`);
+        scrollToResult();
       }
     } catch (err) {
       // Обрабатываем структурированную ошибку
@@ -309,6 +352,8 @@ export default function Home() {
     setActiveAction(null);
     setStatusMessage('');
     setCopied(false);
+    setGeneratedImage(null);
+    setImagePrompt(null);
   };
 
   // Функция копирования результата
@@ -508,6 +553,30 @@ export default function Home() {
                 '✈️ Telegram'
               )}
             </button>
+
+            <button
+              onClick={() => handleAction('illustration')}
+              disabled={loading}
+              title="Сгенерировать иллюстрацию к статье с помощью AI"
+              className={`w-full sm:flex-1 px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-medium transition-all duration-200 text-sm sm:text-base
+                ${activeAction === 'illustration' && loading
+                  ? 'bg-rose-600 text-white'
+                  : 'bg-rose-100 text-rose-700 hover:bg-rose-600 hover:text-white'
+                }
+                disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {activeAction === 'illustration' && loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Генерация...
+                </span>
+              ) : (
+                '🎨 Иллюстрация'
+              )}
+            </button>
           </div>
         </div>
 
@@ -532,7 +601,7 @@ export default function Home() {
         )}
 
         {/* Блок результата */}
-        {(result || loading) && !error && (
+        {(result || loading || generatedImage) && !error && (
           <div ref={resultRef} className="bg-white rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 md:p-8 animate-fade-in">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
               <h2 className="text-base sm:text-lg font-semibold text-slate-800 flex items-center gap-2">
@@ -540,7 +609,7 @@ export default function Home() {
                 Результат
               </h2>
               {/* Кнопка копирования */}
-              {result && !loading && (
+              {result && !loading && !generatedImage && (
                 <button
                   onClick={handleCopy}
                   className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
@@ -567,19 +636,47 @@ export default function Home() {
                   )}
                 </button>
               )}
+              {/* Кнопка скачивания для изображения */}
+              {generatedImage && !loading && (
+                <a
+                  href={generatedImage}
+                  download="illustration.png"
+                  className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 bg-slate-100 text-slate-600 hover:bg-rose-100 hover:text-rose-700"
+                >
+                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  <span className="hidden sm:inline">Скачать</span>
+                </a>
+              )}
             </div>
-            <div className="bg-slate-50 rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-6 min-h-[150px] sm:min-h-[200px] overflow-auto max-h-[400px] sm:max-h-[500px]">
+            <div className="bg-slate-50 rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-6 min-h-[150px] sm:min-h-[200px] overflow-auto max-h-[600px] sm:max-h-[700px]">
               {loading ? (
                 <div className="flex items-center justify-center h-[150px] sm:h-[200px]">
                   <div className="flex flex-col items-center gap-3 sm:gap-4">
                     <div className="w-10 h-10 sm:w-12 sm:h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                    <p className="text-slate-500 text-sm sm:text-base">AI анализирует статью...</p>
+                    <p className="text-slate-500 text-sm sm:text-base">
+                      {activeAction === 'illustration' ? 'AI создаёт иллюстрацию...' : 'AI анализирует статью...'}
+                    </p>
                   </div>
                 </div>
               ) : (
-                <pre className="whitespace-pre-wrap text-slate-700 font-mono text-xs sm:text-sm leading-relaxed break-words">
-                  {result}
-                </pre>
+                <>
+                  {generatedImage && (
+                    <div className="mb-4">
+                      <img 
+                        src={generatedImage} 
+                        alt="Сгенерированная иллюстрация" 
+                        className="w-full max-w-lg mx-auto rounded-lg shadow-md"
+                      />
+                    </div>
+                  )}
+                  {result && (
+                    <pre className="whitespace-pre-wrap text-slate-700 font-mono text-xs sm:text-sm leading-relaxed break-words">
+                      {result}
+                    </pre>
+                  )}
+                </>
               )}
             </div>
           </div>
